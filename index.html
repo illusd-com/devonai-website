@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DevonAI — 全本地、零依賴的個人智能體</title>
+  <meta name="description" content="DevonAI 是完全離線、單一可執行、零 API 依賴的輕量本地 AI 智能體。結合終端機風格介面、node-llama-cpp 推理引擎與安全工具箱。" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Noto+Serif+TC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-start: #e8f0f8;
+      --bg-mid: #f5e6e8;
+      --bg-end: #f8e9e0;
+      --text-primary: #1a1a1a;
+      --text-secondary: #4a4a4a;
+      --text-muted: #6b6b6b;
+      --accent: #2c5aa0;
+      --accent-soft: rgba(44, 90, 160, 0.08);
+      --card-bg: rgba(255, 255, 255, 0.72);
+      --card-border: rgba(255, 255, 255, 0.9);
+      --shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+      --radius: 20px;
+      --radius-sm: 12px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    *:focus,
+    *:focus-visible {
+      outline: none !important;
+    }
+
+    button:focus,
+    a:focus,
+    input:focus,
+    textarea:focus {
+      outline: none !important;
+      box-shadow: none !important;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text-primary);
+      background: linear-gradient(160deg, var(--bg-start) 0%, var(--bg-mid) 45%, var(--bg-end) 100%);
+      background-attachment: fixed;
+      min-height: 100vh;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: 
+        radial-gradient(ellipse 80% 50% at 20% 20%, rgba(173, 216, 230, 0.35) 0%, transparent 50%),
+        radial-gradient(ellipse 60% 40% at 80% 10%, rgba(255, 182, 193, 0.25) 0%, transparent 45%),
+        radial-gradient(ellipse 70% 50% at 50% 90%, rgba(255, 218, 185, 0.2) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 20px 0;
+      backdrop-filter: blur(16px);
+      background: rgba(255, 255, 255, 0.55);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+      transition: all 0.3s ease;
+    }
+
+    header.scrolled {
+      padding: 14px 0;
+      background: rgba(255, 255, 255, 0.85);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .logo {
+      font-family: 'Noto Serif TC', serif;
+      font-size: 1.35rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      text-decoration: none;
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .logo span {
+      font-weight: 400;
+      opacity: 0.55;
+      font-size: 0.95em;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--text-primary);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 999px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.25s ease;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn:focus,
+    .btn:focus-visible,
+    .btn:active {
+      outline: none;
+      box-shadow: none;
+    }
+
+    a:focus,
+    a:focus-visible {
+      outline: none;
+    }
+
+    .btn-primary {
+      background: var(--text-primary);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #333;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-secondary {
+      background: var(--card-bg);
+      color: var(--text-primary);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      backdrop-filter: blur(8px);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.9);
+      transform: translateY(-1px);
+    }
+
+    .hero {
+      padding: 160px 0 100px;
+      text-align: center;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: var(--accent-soft);
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--accent);
+      margin-bottom: 28px;
+    }
+
+    .hero-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .hero h1 {
+      font-family: 'Noto Serif TC', serif;
+      font-size: clamp(2.8rem, 7vw, 4.6rem);
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 24px;
+      color: var(--text-primary);
+    }
+
+    .hero h1 .light {
+      font-weight: 400;
+      opacity: 0.55;
+    }
+
+    .hero-sub {
+      font-size: clamp(1.1rem, 2.2vw, 1.35rem);
+      color: var(--text-secondary);
+      max-width: 620px;
+      margin: 0 auto 40px;
+      font-weight: 400;
+      line-height: 1.7;
+    }
+
+    .hero-cta {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 64px;
+    }
+
+    .hero-visual {
+      max-width: 860px;
+      margin: 0 auto;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.6);
+      background: rgba(20, 20, 25, 0.92);
+      aspect-ratio: 16 / 9.5;
+      position: relative;
+    }
+
+    .terminal-mock {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 13px;
+      color: #e0e0e0;
+    }
+
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.04);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .terminal-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .terminal-dot.red { background: #ff5f57; }
+    .terminal-dot.yellow { background: #febc2e; }
+    .terminal-dot.green { background: #28c840; }
+
+    .terminal-title {
+      flex: 1;
+      text-align: center;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.4);
+      font-family: 'Noto Sans TC', sans-serif;
+    }
+
+    .terminal-body {
+      flex: 1;
+      padding: 20px 24px;
+      overflow: hidden;
+      text-align: left;
+      line-height: 1.7;
+    }
+
+    .t-line {
+      margin-bottom: 6px;
+      opacity: 0;
+      animation: fadeInLine 0.4s forwards;
+    }
+
+    .t-line:nth-child(1) { animation-delay: 0.3s; }
+    .t-line:nth-child(2) { animation-delay: 0.6s; }
+    .t-line:nth-child(3) { animation-delay: 0.9s; }
+    .t-line:nth-child(4) { animation-delay: 1.3s; }
+    .t-line:nth-child(5) { animation-delay: 1.7s; }
+    .t-line:nth-child(6) { animation-delay: 2.1s; }
+    .t-line:nth-child(7) { animation-delay: 2.6s; }
+    .t-line:nth-child(8) { animation-delay: 3.1s; }
+
+    @keyframes fadeInLine {
+      to { opacity: 1; }
+    }
+
+    .t-prompt { color: #7dd3a0; }
+    .t-cmd { color: #e0e0e0; }
+    .t-dim { color: rgba(255, 255, 255, 0.35); }
+    .t-accent { color: #93c5fd; }
+    .t-think { color: #c4b5fd; }
+    .t-tool { color: #fcd34d; }
+
+    .section {
+      padding: 100px 0;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 64px;
+    }
+
+    .section-header h2 {
+      font-family: 'Noto Serif TC', serif;
+      font-size: clamp(1.9rem, 4vw, 2.6rem);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+    }
+
+    .section-header p {
+      font-size: 1.15rem;
+      color: var(--text-secondary);
+      max-width: 540px;
+      margin: 0 auto;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 36px 32px;
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow);
+      transition: all 0.3s ease;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.08);
+    }
+
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      margin-bottom: 20px;
+      background: var(--accent-soft);
+    }
+
+    .feature-card h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      letter-spacing: -0.01em;
+    }
+
+    .feature-card p {
+      color: var(--text-secondary);
+      font-size: 0.98rem;
+      line-height: 1.7;
+    }
+
+    .big-feature {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 64px;
+      align-items: center;
+      margin-bottom: 100px;
+    }
+
+    .big-feature:nth-child(even) {
+      direction: rtl;
+    }
+
+    .big-feature:nth-child(even) > * {
+      direction: ltr;
+    }
+
+    .big-feature-content h3 {
+      font-family: 'Noto Serif TC', serif;
+      font-size: 1.9rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .big-feature-content p {
+      color: var(--text-secondary);
+      font-size: 1.05rem;
+      line-height: 1.75;
+      margin-bottom: 24px;
+    }
+
+    .big-feature-visual {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 32px;
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow);
+      min-height: 280px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .code-block {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      line-height: 1.65;
+      color: #333;
+      background: rgba(0, 0, 0, 0.03);
+      border-radius: 12px;
+      padding: 20px;
+      overflow-x: auto;
+    }
+
+    .code-block .comment { color: #6b7280; }
+    .code-block .keyword { color: #7c3aed; }
+    .code-block .string { color: #059669; }
+    .code-block .fn { color: #2563eb; }
+
+    .compare-table {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow);
+    }
+
+    .compare-table table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .compare-table th,
+    .compare-table td {
+      padding: 18px 24px;
+      text-align: left;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .compare-table th {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      background: rgba(0, 0, 0, 0.02);
+    }
+
+    .compare-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .compare-table td:first-child {
+      font-weight: 500;
+    }
+
+    .check {
+      color: #059669;
+      font-weight: 600;
+    }
+
+    .cross {
+      color: #9ca3af;
+    }
+
+    .cta-section {
+      text-align: center;
+      padding: 100px 0 120px;
+    }
+
+    .cta-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 28px;
+      padding: 64px 40px;
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow);
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    .cta-box h2 {
+      font-family: 'Noto Serif TC', serif;
+      font-size: 2.1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .cta-box p {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      margin-bottom: 32px;
+    }
+
+    .cta-buttons {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    footer {
+      padding: 48px 0 40px;
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+      text-align: center;
+    }
+
+    footer p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .hero { padding: 130px 0 70px; }
+      .big-feature { grid-template-columns: 1fr; gap: 32px; }
+      .big-feature:nth-child(even) { direction: ltr; }
+      .section { padding: 70px 0; }
+      .cta-box { padding: 48px 28px; }
+    }
+  </style>
+</head>
+<body>
+  <header id="header">
+    <div class="header-inner">
+      <a href="#" class="logo">Devon<span>AI</span></a>
+      <nav class="nav-links">
+        <a href="#features">功能</a>
+        <a href="#architecture">架構</a>
+        <a href="#compare">比較</a>
+        <a href="#start" class="btn btn-primary" style="padding: 10px 20px; font-size: 0.9rem;">開始使用</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="container">
+      <div class="hero-badge">全本地 · 零 API · 免 Ollama</div>
+      <h1>Devon<span class="light">AI</span></h1>
+      <p class="hero-sub">
+        你的專屬本地智能體。<br />
+        單一可執行、完全離線、零雲端依賴。<br />
+        在終端機裡擁有真正屬於自己的 AI。
+      </p>
+      <div class="hero-cta">
+        <a href="#start" class="btn btn-primary">立即開始</a>
+        <a href="#architecture" class="btn btn-secondary">了解架構</a>
+      </div>
+
+      <div class="hero-visual">
+        <div class="terminal-mock">
+          <div class="terminal-bar">
+            <div class="terminal-dot red"></div>
+            <div class="terminal-dot yellow"></div>
+            <div class="terminal-dot green"></div>
+            <div class="terminal-title">DevonAI — 本地智能體</div>
+          </div>
+          <div class="terminal-body">
+            <div class="t-line"><span class="t-prompt">❯</span> <span class="t-cmd">devonai</span></div>
+            <div class="t-line"><span class="t-dim">載入模型 dev0.1-q4_k_m.gguf ...</span></div>
+            <div class="t-line"><span class="t-accent">模型就緒</span> · 上下文 8192 · 本地量化模型</div>
+            <div class="t-line"><span class="t-dim">──────────────────────────────</span></div>
+            <div class="t-line"><span class="t-prompt">你 ›</span> 幫我分析目前專案結構並找出可能的優化點</div>
+            <div class="t-line"><span class="t-think">思考中...</span></div>
+            <div class="t-line"><span class="t-tool">→ 呼叫工具: fileTool.list + terminalTool</span></div>
+            <div class="t-line"><span class="t-accent">Devon ›</span> 已掃描 24 個檔案。建議重構 src/core 下的引擎初始化邏輯...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="features">
+    <div class="container">
+      <div class="section-header">
+        <h2>為真正的本地工作而設計</h2>
+        <p>不是又一個雲端聊天機器人，而是跑在你電腦上的完整智能體系統。</p>
+      </div>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🖥️</div>
+          <h3>沉浸式終端介面</h3>
+          <p>使用 TypeScript + React + Ink 打造，完美還原沉浸式 CLI 體驗。狀態列、串流對話、思考動畫、底部輸入框一應俱全。</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🧠</div>
+          <h3>In-Process 本地推理</h3>
+          <p>透過 node-llama-cpp 直接在 Node.js 行程內加載 GGUF 模型。零 Ollama、零外部服務，完全離線運作。</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔄</div>
+          <h3>ReAct 智能體迴圈</h3>
+          <p>模型思考 → 工具調用 → 本地執行 → 結果回傳。多輪自主運行，直到完成任務或達到限制。</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🛡️</div>
+          <h3>安全工具沙盒</h3>
+          <p>終端機指令攔截高風險操作，檔案工具嚴格限制在專案目錄內，路徑遍歷防護到位。</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📦</div>
+          <h3>自動模型下載</h3>
+          <p>首次啟動自動從 Hugging Face 下載輕量量化模型，進度條清晰，安裝即用。</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📡</div>
+          <h3>事件總線驅動</h3>
+          <p>模型與 UI 之間透過全域 EventBus 即時通訊，思考、工具呼叫、結果回傳全部即時更新。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="architecture" style="padding-top: 40px;">
+    <div class="container">
+      <div class="section-header">
+        <h2>三大核心模組</h2>
+        <p>從介面到引擎到工具，每一層都為本地優先而設計。</p>
+      </div>
+
+      <div class="big-feature">
+        <div class="big-feature-content">
+          <h3>模組一 · 沉浸式終端 CLI</h3>
+          <p>
+            完整還原現代化終端機介面風格與色彩系統。
+            Header 狀態列、ChatStream 串流歷史、Spinner 思考動畫、InputBox 互動輸入，
+            全部由事件總線驅動，Agent 思考或執行工具時 UI 即時更新。
+          </p>
+          <a href="#start" class="btn btn-secondary">查看原始碼結構</a>
+        </div>
+        <div class="big-feature-visual">
+          <div class="code-block">
+            <span class="comment">// src/ui/App.tsx</span><br />
+            <span class="keyword">import</span> { Header, ChatStream, InputBox } <span class="keyword">from</span> <span class="string">'./components'</span>;<br />
+            <span class="keyword">import</span> { eventBus } <span class="keyword">from</span> <span class="string">'../core/eventBus'</span>;<br /><br />
+            <span class="keyword">export</span> <span class="keyword">function</span> <span class="fn">App</span>() {<br />
+            &nbsp;&nbsp;<span class="keyword">const</span> [messages, setMessages] = useState([]);<br />
+            &nbsp;&nbsp;<span class="comment">// 監聽底層事件，即時更新 UI</span><br />
+            &nbsp;&nbsp;useEffect(() => { ... }, []);<br />
+            &nbsp;&nbsp;<span class="keyword">return</span> (<br />
+            &nbsp;&nbsp;&nbsp;&nbsp;&lt;Box flexDirection="column"&gt;...<br />
+            &nbsp;&nbsp;);<br />
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="big-feature">
+        <div class="big-feature-content">
+          <h3>模組二 · 本地模型引擎</h3>
+          <p>
+            使用 node-llama-cpp 以 In-Process 方式直接加載 GGUF。
+            首次啟動自動檢查並下載輕量量化模型，
+            提供高效串流生成器 streamPrompt，並封裝最佳化超參數。
+          </p>
+          <a href="#start" class="btn btn-secondary">了解下載流程</a>
+        </div>
+        <div class="big-feature-visual">
+          <div class="code-block">
+            <span class="comment">// src/core/engine.ts</span><br />
+            <span class="keyword">import</span> { getLlama, LlamaChatSession } <span class="keyword">from</span> <span class="string">'node-llama-cpp'</span>;<br /><br />
+            <span class="keyword">export async function</span> <span class="fn">streamPrompt</span>(prompt: string) {<br />
+            &nbsp;&nbsp;<span class="keyword">const</span> session = <span class="keyword">new</span> LlamaChatSession({ ... });<br />
+            &nbsp;&nbsp;<span class="keyword">for await</span> (<span class="keyword">const</span> chunk <span class="keyword">of</span> session.prompt(prompt)) {<br />
+            &nbsp;&nbsp;&nbsp;&nbsp;eventBus.emit(<span class="string">'token'</span>, chunk);<br />
+            &nbsp;&nbsp;}<br />
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="big-feature">
+        <div class="big-feature-content">
+          <h3>模組三 · 智能體迴圈與安全工具</h3>
+          <p>
+            ReAct 迴圈協調思考與工具執行。內建強固 JSON 容錯解析器，
+            能從 Markdown 區塊或不完整輸出中修復並擷取工具呼叫。
+            terminalTool 攔截高風險指令，fileTool 防止路徑越權。
+          </p>
+          <a href="#start" class="btn btn-secondary">查看工具設計</a>
+        </div>
+        <div class="big-feature-visual">
+          <div class="code-block">
+            <span class="comment">// 高風險指令攔截範例</span><br />
+            <span class="keyword">const</span> BLOCKED = [<br />
+            &nbsp;&nbsp;<span class="string">/rm\s+-rf\s+[\/~]/</span>,<br />
+            &nbsp;&nbsp;<span class="string">/mkfs/</span>, <span class="string">/dd\s+if=/</span>,<br />
+            &nbsp;&nbsp;<span class="string">/chmod\s+-R\s+777\s+\/</span><br />
+            ];<br /><br />
+            <span class="keyword">if</span> (BLOCKED.some(r => r.test(cmd))) {<br />
+            &nbsp;&nbsp;<span class="keyword">throw new</span> <span class="fn">Error</span>(<span class="string">'危險指令已攔截'</span>);<br />
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="compare">
+    <div class="container">
+      <div class="section-header">
+        <h2>為什麼選擇 DevonAI</h2>
+        <p>和常見方案的本質差異。</p>
+      </div>
+
+      <div class="compare-table">
+        <table>
+          <thead>
+            <tr>
+              <th>特性</th>
+              <th>DevonAI</th>
+              <th>Ollama + 其他</th>
+              <th>雲端 API</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>完全離線運作</td>
+              <td class="check">✓</td>
+              <td class="check">✓</td>
+              <td class="cross">✗</td>
+            </tr>
+            <tr>
+              <td>免額外服務 / 守護進程</td>
+              <td class="check">✓</td>
+              <td class="cross">需要 Ollama</td>
+              <td class="cross">需要網路</td>
+            </tr>
+            <tr>
+              <td>單一可執行體驗</td>
+              <td class="check">✓</td>
+              <td class="cross">多元件</td>
+              <td class="cross">帳號 + Key</td>
+            </tr>
+            <tr>
+              <td>資料永不離開本機</td>
+              <td class="check">✓</td>
+              <td class="check">✓</td>
+              <td class="cross">✗</td>
+            </tr>
+            <tr>
+              <td>內建安全工具沙盒</td>
+              <td class="check">✓</td>
+              <td class="cross">需自行實作</td>
+              <td class="cross">受限</td>
+            </tr>
+            <tr>
+              <td>沉浸式終端 UI</td>
+              <td class="check">✓</td>
+              <td class="cross">—</td>
+              <td class="cross">—</td>
+            </tr>
+            <tr>
+              <td>自動模型下載與管理</td>
+              <td class="check">✓</td>
+              <td class="check">✓</td>
+              <td class="cross">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-section" id="start">
+    <div class="container">
+      <div class="cta-box">
+        <h2>開始打造你的本地智能體</h2>
+        <p>
+          完整專案原始碼、下載腳本、推理引擎、Agent 迴圈與 Ink UI 元件皆已準備就緒。<br />
+          從零到可執行，一步到位。
+        </p>
+        <div class="cta-buttons">
+          <a href="https://github.com/devonai-git/agent" class="btn btn-primary" target="_blank" rel="noopener noreferrer">取得完整專案</a>
+          <a href="#architecture" class="btn btn-secondary">再次查看架構</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <p>
+        DevonAI · 全本地、零 API 依賴的個人智能體<br />
+        <span style="opacity: 0.7; font-size: 0.85rem;">設計靈感來自 Hark Pro 的優雅與克制</span>
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    const header = document.getElementById('header');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 40) {
+        header.classList.add('scrolled');
+      } else {
+        header.classList.remove('scrolled');
+      }
+    });
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.feature-card, .big-feature, .compare-table').forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(24px)';
+      el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+      observer.observe(el);
+    });
+  </script>
+</body>
+</html>
